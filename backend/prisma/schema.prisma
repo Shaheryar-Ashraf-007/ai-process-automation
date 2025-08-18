@@ -1,0 +1,153 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // You’ll use Neon Postgres
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String?
+  email        String   @unique
+  password     String?
+  provider     String?
+  providerId   String?   
+  profileImage String?
+  tier         String   @default("Free")
+  credits      Int      @default(10)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  googleCredentials GoogleCredential?
+  slackAccounts     Slack[]
+  notionAccounts    Notion[]
+  connections       Connections[]
+  workflows         Workflow[]
+  linkedInAccounts  LinkedIn[]
+  whatsapps         WhatsApp[]
+  emails            Email[]
+}
+
+model GoogleCredential {
+  id          String   @id @default(uuid())
+  accessToken String
+  refreshToken String
+  expiryDate  DateTime
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Slack {
+  id               String   @id @default(uuid())
+  appId            String
+  authedUserId     String
+  authedUserToken  String   @unique
+  slackAccessToken String   @unique
+  botUserId        String
+  teamId           String
+  teamName         String
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  connections Connections[]
+}
+
+model Notion {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  accessToken  String
+  botId        String
+  workspaceName String
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  connections Connections[]
+}
+
+model LinkedIn {
+  id          String   @id @default(uuid())
+  accessToken String
+  refreshToken String
+  expiresIn   Int
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+}
+
+model WhatsApp {
+  id        String   @id @default(uuid())
+  phone     String
+  apiKey    String
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+}
+
+model Email {
+  id        String   @id @default(uuid())
+  provider  String   // Gmail, Outlook, etc.
+  email     String
+  accessToken String
+  refreshToken String?
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+}
+
+model Connections {
+  id        String   @id @default(uuid())
+  type      String   // slack, notion, gmail, etc.
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  // Optional foreign keys for flexibility
+  slackId  String?
+  slack    Slack?  @relation(fields: [slackId], references: [id])
+
+  notionId String?
+  notion   Notion? @relation(fields: [notionId], references: [id])
+
+
+}
+
+model Workflow {
+  id        String   @id @default(uuid())
+  name      String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  triggers Trigger[]
+  actions  Action[]
+}
+
+model Trigger {
+  id         String   @id @default(uuid())
+  type       String   // e.g. "new_email", "slack_message", "file_uploaded"
+  config     Json     // store metadata (labels, filters, etc.)
+  createdAt  DateTime @default(now())
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+}
+
+model Action {
+  id         String   @id @default(uuid())
+  type       String   // e.g. "send_email", "post_slack_message", "create_crm_lead"
+  config     Json
+  createdAt  DateTime @default(now())
+
+  workflowId String
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+}
